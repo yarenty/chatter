@@ -1,3 +1,5 @@
+import os
+os.environ["CHROMA_TELEMETRY_ENABLED"] = "False"
 import argparse
 import logging
 from agent import ChatterAgent
