@@ -29,8 +29,8 @@ def main():
         from lang_agent import LangChatterAgent
         agent = LangChatterAgent()
     else:
-        from agent import ChatterAgent
-        agent = ChatterAgent()
+        from agent import MemOChatterAgent
+        agent = MemOChatterAgent()
 
     print(f"Chatter Agent initialized with backend '{args.backend}'. Type 'exit' to quit.")
     while True:
