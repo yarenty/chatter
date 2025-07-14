@@ -1,0 +1,13 @@
+[project]
+name = "chatter"
+version = "0.1.0"
+description = "An Agentic AI Chatbot with Memory"
+dependencies = [
+    "mem0",
+    "ollama",
+]
+requires-python = ">=3.9"
+
+[build-system]
+requires = ["uv>=0.1.11"]
+build-backend = "uv.build"
