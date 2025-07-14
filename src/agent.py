@@ -1,10 +1,19 @@
 from mem0 import Memory
+from mem0.configs.base import MemoryConfig
+from mem0.embeddings.configs import EmbedderConfig
+from mem0.vector_stores.configs import VectorStoreConfig
+from mem0.llms.configs import LlmConfig
 import ollama
-from config import OLLAMA_MODEL
+# from config import OLLAMA_MODEL  # Remove this line
 
 class ChatterAgent:
     def __init__(self, agent_id="chatter-agent"):
-        self.memory = Memory()
+        memory_config = MemoryConfig(
+            embedder=EmbedderConfig(provider="ollama", config={"model": "llama3.2"}),
+            vector_store=VectorStoreConfig(provider="chroma", config={}),
+            llm=LlmConfig(provider="ollama", config={"model": "llama3.2"})
+        )
+        self.memory = Memory(config=memory_config)
         self.agent_id = agent_id
 
     def chat(self, user_message: str):
@@ -23,7 +32,7 @@ class ChatterAgent:
         prompt += "Agent:"
 
         # Get response from Ollama
-        response = ollama.chat(model=OLLAMA_MODEL, messages=[{'role': 'user', 'content': prompt}])
+        response = ollama.chat(model="llama3.2", messages=[{'role': 'user', 'content': prompt}])
         agent_response = response['message']['content']
 
         # Store the agent's response in memory
