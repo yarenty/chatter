@@ -23,14 +23,17 @@ class ChatterAgent:
         self.memory.add(user_message, agent_id=self.agent_id)
 
         # Retrieve relevant memories
-        relevant_memories = self.memory.recall(user_message, agent_id=self.agent_id)
+        relevant_memories = self.memory.search(user_message, agent_id=self.agent_id)
         
         # Construct the prompt for Ollama, including relevant memories
         prompt = f"User: {user_message}\n"
         if relevant_memories:
             prompt += "Context from memory:\n"
             for mem in relevant_memories:
-                prompt += f"- {mem.text}\n"
+                if isinstance(mem, dict) and 'memory' in mem:
+                    prompt += f"- {mem['memory']}\n"
+                else:
+                    prompt += f"- {mem}\n"
         prompt += "Agent:"
 
         # Get response from Ollama
