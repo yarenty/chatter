@@ -1,13 +1,12 @@
 # Chatter: An Agentic AI Chatbot with Memory
 
-Chatter is a Python-based agentic AI chatbot that leverages Ollama for language model interactions and Mem0 for conversational memory.
+Chatter is a Python-based agentic AI chatbot that leverages LangChain for orchestration, Ollama for language model interactions, and ChromaDB for conversational memory.
 
 ## Features
 
-- **Conversational Memory:** Utilizes Mem0 to store and recall past interactions, enabling more coherent and context-aware conversations.
+- **Conversational Memory:** Utilizes ChromaDB as a vector store with LangChain's `VectorStoreRetrieverMemory` to store and recall past interactions, enabling more coherent and context-aware conversations.
 - **Ollama Integration:** Connects with local or remote Ollama instances to use various large language models (defaulting to `llama3.2`).
 - **Modular Design:** Separated configuration, agent logic, and main application for easy extension and maintenance.
-- **Configurable Logging:** Set the logging level from the command line for easier debugging and development.
 
 ## Setup and Installation
 
@@ -24,16 +23,6 @@ Follow these steps to get Chatter up and running on your local machine.
   ```bash
   ollama pull llama3.2
   ```
-- **ChromaDB:** Used for local vector storage. Install with:
-  ```bash
-  pip install chromadb
-  ```
-- **mem0:** Memory backend. Install from PyPI or directly from GitHub for the latest version:
-  ```bash
-  pip install mem0ai
-  # or for latest
-  pip install git+https://github.com/mem0ai/mem0.git
-  ```
 
 ### Installation Steps
 
@@ -46,50 +35,58 @@ Follow these steps to get Chatter up and running on your local machine.
     ```bash
     uv venv
     source .venv/bin/activate
-    uv pip install -e .
+    uv pip install langchain langchain-community chromadb ollama
     ```
-    *Note: The `-e .` installs the project in editable mode, which is useful for development. If you encounter issues with `mem0` installation, you might need to install it directly from its GitHub repository:* `uv pip install git+https://github.com/mem0ai/mem0.git`
 
 ## Configuration
 
-All model and backend configuration is in `src/config.py`:
+The `src/config.py` file contains the main configuration for the Chatter agent.
 
-```python
-# src/config.py
-OLLAMA_MODEL = "llama3.2"
-EMBEDDING_PROVIDER = "ollama"
-EMBEDDING_MODEL = "llama3.2"
-VECTOR_STORE_PROVIDER = "chroma"
-LLM_PROVIDER = "ollama"
-LLM_MODEL = "llama3.2"
-```
+- `OLLAMA_MODEL`: Specifies the Ollama model to use. Default is `llama3.2`.
+- `CHROMA_DB_PATH`: Specifies the local directory where ChromaDB will persist its data. Default is `./chroma_db`.
 
-You can change these values to use different models or backends as needed.
+  ```python
+  # src/config.py
+  OLLAMA_MODEL = "llama3.2"
+  CHROMA_DB_PATH = "./chroma_db"
+  ```
 
 ## Running the Chatbot
 
-To start the Chatter agent, run the `main.py` script:
+Chatter supports two backends:
 
+- **mem0** (default): Uses the original memory backend.
+- **LangChain**: Uses LangChain, Ollama, and ChromaDB for memory and LLM.
+
+### To use the default (mem0) backend:
 ```bash
-python src/main.py
+python src/main.py --backend=mem0
 ```
 
-### Logging Level
-
-You can control the logging verbosity from the command line:
-
+### To use the LangChain backend:
 ```bash
-python src/main.py --log-level DEBUG
+python src/main.py --backend=langchain
 ```
 
-Supported levels: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` (default: `INFO`).
+Once the agent is initialized, you can start chatting. Type `exit` to quit the application.
 
-## Memory Storage Locations
+### Logging
+You can control the logging level (for debug/info output) with the `--log-level` argument or the `CHATTER_LOG_LEVEL` environment variable:
 
-- **Chroma Vector Store:**
-  - By default, Chroma stores its data in a `./chroma/` directory in your project root. You can change this by setting the `path` in the Chroma config in `src/config.py`.
-- **mem0 History Database:**
-  - mem0 uses a local SQLite database at `~/.mem0/history.db` by default for storing conversation history.
+```bash
+python src/main.py --backend=langchain --log-level=DEBUG
+# or
+export CHATTER_LOG_LEVEL=DEBUG
+python src/main.py --backend=langchain
+```
+
+### Resetting/Clearing ChromaDB Memory
+To completely reset the LangChain agent's memory, delete the ChromaDB directory (by default `./chroma_db`):
+
+```bash
+rm -rf ./chroma_db
+```
+This will remove all stored conversation history for the LangChain backend.
 
 ## Project Structure
 
@@ -98,17 +95,19 @@ chatter/
 ├── .venv/                # Python virtual environment
 ├── src/
 │   ├── __init__.py
-│   ├── agent.py          # Core agent logic (Ollama and Mem0 integration)
+│   ├── agent.py          # Core agent logic (mem0 backend)
+│   ├── lang_agent.py     # LangChain, Ollama, ChromaDB integration (langchain backend)
 │   ├── config.py         # Configuration settings
 │   └── main.py           # Main application entry point
 ├── pyproject.toml        # Project dependencies and metadata
 ├── .gitignore            # Git ignore file
+├── chroma_db/            # Directory for ChromaDB persistence (created on first run)
 └── README.md             # Project documentation
 ```
 
 ## Future Enhancements
 
 - Integration with more advanced tools and APIs.
-- Support for different memory backends in Mem0.
+- Support for different memory backends in LangChain.
 - Web interface for easier interaction.
 - More sophisticated prompt engineering and agentic behaviors.
