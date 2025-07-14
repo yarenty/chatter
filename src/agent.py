@@ -13,6 +13,8 @@ class ChatterAgent:
             vector_store=VectorStoreConfig(provider="chroma", config={}),
             llm=LlmConfig(provider="ollama", config={"model": "llama3.2"})
         )
+        #embedding_backend="sentence-transformers",
+        #embedding_model="all-MiniLM-L6-v2",
         self.memory = Memory(config=memory_config)
         self.agent_id = agent_id
 
