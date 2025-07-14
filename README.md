@@ -7,6 +7,7 @@ Chatter is a Python-based agentic AI chatbot that leverages Ollama for language 
 - **Conversational Memory:** Utilizes Mem0 to store and recall past interactions, enabling more coherent and context-aware conversations.
 - **Ollama Integration:** Connects with local or remote Ollama instances to use various large language models (defaulting to `llama3.2`).
 - **Modular Design:** Separated configuration, agent logic, and main application for easy extension and maintenance.
+- **Configurable Logging:** Set the logging level from the command line for easier debugging and development.
 
 ## Setup and Installation
 
@@ -22,6 +23,16 @@ Follow these steps to get Chatter up and running on your local machine.
 - **Ollama:** Download and install Ollama from [ollama.com](https://ollama.com/). Make sure to pull the `llama3.2` model:
   ```bash
   ollama pull llama3.2
+  ```
+- **ChromaDB:** Used for local vector storage. Install with:
+  ```bash
+  pip install chromadb
+  ```
+- **mem0:** Memory backend. Install from PyPI or directly from GitHub for the latest version:
+  ```bash
+  pip install mem0ai
+  # or for latest
+  pip install git+https://github.com/mem0ai/mem0.git
   ```
 
 ### Installation Steps
@@ -41,14 +52,19 @@ Follow these steps to get Chatter up and running on your local machine.
 
 ## Configuration
 
-The `src/config.py` file contains the main configuration for the Chatter agent.
+All model and backend configuration is in `src/config.py`:
 
-- `OLLAMA_MODEL`: Specifies the Ollama model to use. Default is `llama3.2`.
+```python
+# src/config.py
+OLLAMA_MODEL = "llama3.2"
+EMBEDDING_PROVIDER = "ollama"
+EMBEDDING_MODEL = "llama3.2"
+VECTOR_STORE_PROVIDER = "chroma"
+LLM_PROVIDER = "ollama"
+LLM_MODEL = "llama3.2"
+```
 
-  ```python
-  # src/config.py
-  OLLAMA_MODEL = "llama3.2"
-  ```
+You can change these values to use different models or backends as needed.
 
 ## Running the Chatbot
 
@@ -58,7 +74,22 @@ To start the Chatter agent, run the `main.py` script:
 python src/main.py
 ```
 
-Once the agent is initialized, you can start chatting. Type `exit` to quit the application.
+### Logging Level
+
+You can control the logging verbosity from the command line:
+
+```bash
+python src/main.py --log-level DEBUG
+```
+
+Supported levels: `DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL` (default: `INFO`).
+
+## Memory Storage Locations
+
+- **Chroma Vector Store:**
+  - By default, Chroma stores its data in a `./chroma/` directory in your project root. You can change this by setting the `path` in the Chroma config in `src/config.py`.
+- **mem0 History Database:**
+  - mem0 uses a local SQLite database at `~/.mem0/history.db` by default for storing conversation history.
 
 ## Project Structure
 
