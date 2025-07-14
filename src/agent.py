@@ -3,15 +3,16 @@ import ollama
 from config import OLLAMA_MODEL
 
 class ChatterAgent:
-    def __init__(self):
+    def __init__(self, agent_id="chatter-agent"):
         self.memory = Memory()
+        self.agent_id = agent_id
 
     def chat(self, user_message: str):
         # Store the user message in memory
-        self.memory.add(user_message)
+        self.memory.add(user_message, agent_id=self.agent_id)
 
         # Retrieve relevant memories
-        relevant_memories = self.memory.recall(user_message)
+        relevant_memories = self.memory.recall(user_message, agent_id=self.agent_id)
         
         # Construct the prompt for Ollama, including relevant memories
         prompt = f"User: {user_message}\n"
@@ -26,7 +27,7 @@ class ChatterAgent:
         agent_response = response['message']['content']
 
         # Store the agent's response in memory
-        self.memory.add(agent_response)
+        self.memory.add(agent_response, agent_id=self.agent_id)
 
         return agent_response
 
