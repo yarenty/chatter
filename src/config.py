@@ -1,1 +1,6 @@
 OLLAMA_MODEL = "llama3.2"
+EMBEDDING_PROVIDER = "ollama"
+EMBEDDING_MODEL = "llama3.2"
+VECTOR_STORE_PROVIDER = "chroma"
+LLM_PROVIDER = "ollama"
+LLM_MODEL = "llama3.2"

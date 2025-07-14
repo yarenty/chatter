@@ -1,30 +1,38 @@
+import logging
 from mem0 import Memory
 from mem0.configs.base import MemoryConfig
 from mem0.embeddings.configs import EmbedderConfig
 from mem0.vector_stores.configs import VectorStoreConfig
 from mem0.llms.configs import LlmConfig
 import ollama
-# from config import OLLAMA_MODEL  # Remove this line
+from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL, VECTOR_STORE_PROVIDER, LLM_PROVIDER, LLM_MODEL
+
+# Remove logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class ChatterAgent:
     def __init__(self, agent_id="chatter-agent"):
         memory_config = MemoryConfig(
-            embedder=EmbedderConfig(provider="ollama", config={"model": "llama3.2"}),
-            vector_store=VectorStoreConfig(provider="chroma", config={}),
-            llm=LlmConfig(provider="ollama", config={"model": "llama3.2"})
+            embedder=EmbedderConfig(provider=EMBEDDING_PROVIDER, config={"model": EMBEDDING_MODEL}),
+            vector_store=VectorStoreConfig(provider=VECTOR_STORE_PROVIDER, config={}),
+            llm=LlmConfig(provider=LLM_PROVIDER, config={"model": LLM_MODEL})
         )
-        #embedding_backend="sentence-transformers",
-        #embedding_model="all-MiniLM-L6-v2",
         self.memory = Memory(config=memory_config)
         self.agent_id = agent_id
 
     def chat(self, user_message: str):
-        # Store the user message in memory
-        self.memory.add(user_message, agent_id=self.agent_id)
-
-        # Retrieve relevant memories
-        relevant_memories = self.memory.search(user_message, agent_id=self.agent_id)
-        
+        logger.debug(f"user_message = {user_message}")
+        try:
+            self.memory.add(user_message, agent_id=self.agent_id)
+        except Exception as e:
+            logger.exception("Exception during memory.add:")
+        relevant_memories = None
+        try:
+            relevant_memories = self.memory.search(user_message, agent_id=self.agent_id)
+            logger.debug(f"relevant_memories = {relevant_memories}")
+        except Exception as e:
+            logger.exception("Exception during memory.search:")
+            relevant_memories = []
         # Construct the prompt for Ollama, including relevant memories
         prompt = f"User: {user_message}\n"
         if relevant_memories:
@@ -36,13 +44,24 @@ class ChatterAgent:
                     prompt += f"- {mem}\n"
         prompt += "Agent:"
 
-        # Get response from Ollama
-        response = ollama.chat(model="llama3.2", messages=[{'role': 'user', 'content': prompt}])
-        agent_response = response['message']['content']
+        # Streaming response from Ollama
+        try:
+            response_stream = ollama.chat(model=LLM_MODEL, messages=[{'role': 'user', 'content': prompt}], stream=True)
+            agent_response = ""
+            print("Agent: ", end="", flush=True)
+            for chunk in response_stream:
+                content = chunk['message']['content']
+                print(content, end="", flush=True)
+                agent_response += content
+            print()  # Newline after streaming
+        except Exception as e:
+            logger.exception("Exception during ollama.chat:")
+            agent_response = "[Error generating response]"
 
-        # Store the agent's response in memory
-        self.memory.add(agent_response, agent_id=self.agent_id)
-
+        try:
+            self.memory.add(agent_response, agent_id=self.agent_id)
+        except Exception as e:
+            logger.exception("Exception during memory.add (agent response):")
         return agent_response
 
 if __name__ == "__main__":
