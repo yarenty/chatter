@@ -2,6 +2,7 @@ import os
 os.environ["CHROMA_TELEMETRY_ENABLED"] = "False"
 os.environ["MEM0_TELEMETRY_ENABLED"] = "False"
 os.environ["POSTHOG_API_KEY"] = ""
+os.environ["OPENAI_API_KEY"] = ""
 import argparse
 import logging
 from agent import ChatterAgent
