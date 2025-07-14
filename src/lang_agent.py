@@ -1,3 +1,12 @@
+"""
+lang_agent.py
+-------------
+Implements LangChatterAgent, a conversational agent using LangChain, Ollama, and ChromaDB for memory and LLM responses.
+
+- Uses ChromaDB as a vector store for conversational memory.
+- Integrates with Ollama for LLM-based responses.
+- Configuration is loaded from config.py.
+"""
 import os
 import logging
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -8,7 +17,19 @@ from config import OLLAMA_MODEL, CHROMA_DB_PATH
 logger = logging.getLogger(__name__)
 
 class LangChatterAgent:
+    """
+    A conversational agent that uses LangChain for memory storage and retrieval, and Ollama for LLM-based responses.
+
+    Attributes:
+        vectorstore (Chroma): The ChromaDB vector store for storing and retrieving conversation history.
+        embeddings (OllamaEmbeddings): Embedding model for vectorization.
+        llm (ChatOllama): Ollama LLM for generating responses.
+    """
     def __init__(self):
+        """
+        Initialize the LangChatterAgent.
+        Sets up embeddings, vector store, and LLM using configuration from config.py.
+        """
         logger.info("Initializing LangChatterAgent...")
         # Initialize Ollama Embeddings
         self.embeddings = OllamaEmbeddings(model=OLLAMA_MODEL)
@@ -23,6 +44,14 @@ class LangChatterAgent:
         logger.debug("ChatOllama initialized with model: %s", OLLAMA_MODEL)
 
     def chat(self, user_message: str):
+        """
+        Process a user message, retrieve relevant memories, generate a response, and store the exchange.
+
+        Args:
+            user_message (str): The message from the user.
+        Returns:
+            str: The agent's response.
+        """
         logger.info("Received user message: %s", user_message)
         # Retrieve relevant memories BEFORE adding the current user message
         relevant_memories = self.vectorstore.similarity_search(user_message, k=3)
@@ -57,12 +86,14 @@ class LangChatterAgent:
         return response
 
 if __name__ == "__main__":
+    """
+    Entry point for running the agent in interactive mode.
+    """
     agent = LangChatterAgent()
     print("Chatter Agent initialized. Type 'exit' to quit.")
     while True:
         user_input = input("You: ")
         if user_input.lower() == 'exit':
             break
-        
         response = agent.chat(user_input)
         print(f"Agent: {response}")

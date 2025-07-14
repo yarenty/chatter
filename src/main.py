@@ -1,3 +1,12 @@
+"""
+main.py
+-------
+Main entry point for the Chatter conversational agent application.
+
+- Supports two backends: mem0 (default) and langchain.
+- Handles argument parsing, logging configuration, and agent initialization.
+- See config.py for backend and model configuration.
+"""
 import os
 import logging
 
@@ -13,6 +22,10 @@ logger = logging.getLogger(__name__)
 import argparse
 
 def main():
+    """
+    Main function for running the Chatter agent.
+    Handles argument parsing, logging setup, and backend selection.
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument('--log-level', default='INFO', help='Set logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)')
     parser.add_argument('--backend', choices=['mem0', 'langchain'], default='mem0', help='Select backend: mem0 (default) or langchain')
@@ -25,6 +38,7 @@ def main():
     logging.getLogger("backoff").setLevel(logging.CRITICAL)
     logging.getLogger("posthog").setLevel(logging.CRITICAL)
 
+    # Select backend and initialize agent
     if args.backend == 'langchain':
         from lang_agent import LangChatterAgent
         agent = LangChatterAgent()
