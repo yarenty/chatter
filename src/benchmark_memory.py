@@ -5,10 +5,12 @@ from memory_chroma import ChromaMem0Backend
 import os
 import json
 from similarity_utils import get_similarity_func, AVAILABLE_ALGORITHMS
+import argparse
 # Add imports for other backends here as you implement them
 
 QA_DATA_ROOT = os.path.join(os.path.dirname(__file__), '../qa_data')
-RETRIEVAL_SAMPLE_SIZE = 100  # Number of questions to use for retrieval/accuracy
+ADD_SAMPLE_SIZE = 100  # Number of questions to add to memory
+RETRIEVAL_SAMPLE_SIZE = 10  # Number of questions to use for retrieval/accuracy
 DEFAULT_SIMILARITY = 'simple'
 
 
@@ -31,11 +33,12 @@ def load_qa_pairs(root_dir: str) -> List[Tuple[str, str]]:
     return qa_pairs
 
 class MemoryBenchmark:
-    def __init__(self, backends: List, logger: TimingLogger, retrieval_sample_size: int = 100, agent_id: str = "benchmark-agent", similarity: str = DEFAULT_SIMILARITY):
+    def __init__(self, backends: List, logger: TimingLogger, add_sample_size: int = 1000, retrieval_sample_size: int = 100, agent_id: str = "benchmark-agent", similarity: str = DEFAULT_SIMILARITY):
         self.backends = backends
         self.logger = logger
         self.agent_id = agent_id
         self.qa_pairs = load_qa_pairs(QA_DATA_ROOT)
+        self.add_sample_size = min(add_sample_size, len(self.qa_pairs))
         self.retrieval_sample_size = min(retrieval_sample_size, len(self.qa_pairs))
         self.results = []  # To store summary info for each backend
         if similarity not in AVAILABLE_ALGORITHMS:
@@ -53,8 +56,8 @@ class MemoryBenchmark:
             self.logger.log(f"\n--- Benchmarking {backend.name} ---")
             add_times = []
             retrieve_times = []
-            # Add all QA pairs
-            for i, (user_msg, agent_resp) in enumerate(self.qa_pairs):
+            # Add a limited number of QA pairs
+            for i, (user_msg, agent_resp) in enumerate(self.qa_pairs[:self.add_sample_size]):
                 text = f"User: {user_msg}\nAgent: {agent_resp}"
                 add_start = time.time()
                 backend.add(text, agent_id=self.agent_id)
@@ -62,8 +65,8 @@ class MemoryBenchmark:
                 add_times.append(add_time)
                 self.logger.log_timing(f"{backend.name} store/update timing", add_time)
                 self.logger.log_stored(f"{backend.name} memory stored", text)
-                if (i + 1) % 100 == 0 or (i + 1) == len(self.qa_pairs):
-                    print(f"  Added {i + 1}/{len(self.qa_pairs)} items...")
+                if (i + 1) % 10 == 0 or (i + 1) == self.add_sample_size:
+                    print(f"  Added {i + 1}/{self.add_sample_size} items...")
             # Retrieval and accuracy check
             correct = 0
             total_similarity = 0.0
@@ -105,7 +108,7 @@ class MemoryBenchmark:
                 'avg_retrieve_time': sum(retrieve_times) / len(retrieve_times),
                 'accuracy': accuracy,
                 'avg_similarity': avg_similarity,
-                'num_added': len(self.qa_pairs),
+                'num_added': self.add_sample_size,
                 'num_retrieved': self.retrieval_sample_size,
                 'similarity': self.similarity_name
             })
@@ -128,10 +131,16 @@ class MemoryBenchmark:
             self.logger.log(line)
 
 def main():
+    parser = argparse.ArgumentParser(description="Memory Benchmark Script")
+    parser.add_argument('--similarity', type=str, default=DEFAULT_SIMILARITY, help=f"Similarity algorithm to use. Available: {AVAILABLE_ALGORITHMS}")
+    args = parser.parse_args()
+    similarity = args.similarity
+    if similarity not in AVAILABLE_ALGORITHMS:
+        print(f"Error: Similarity algorithm '{similarity}' is not available. Available: {AVAILABLE_ALGORITHMS}")
+        return
     logger = TimingLogger('timing_benchmark.log')
     backends = [ChromaMem0Backend()]  # Add more as you implement them
-    # You can change similarity here, e.g., 'levenshtein', 'jaro', 'hamming', 'simple'
-    benchmark = MemoryBenchmark(backends, logger, retrieval_sample_size=RETRIEVAL_SAMPLE_SIZE, similarity=DEFAULT_SIMILARITY)
+    benchmark = MemoryBenchmark(backends, logger, add_sample_size=ADD_SAMPLE_SIZE, retrieval_sample_size=RETRIEVAL_SAMPLE_SIZE, similarity=similarity)
     benchmark.run()
 
 if __name__ == '__main__':
