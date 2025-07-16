@@ -17,6 +17,7 @@ class MemoryBenchmark:
 
     def run(self):
         for backend in self.backends:
+            print(f"\n--- Benchmarking {backend.name} ---")
             self.logger.log(f"\n--- Benchmarking {backend.name} ---")
             # Add all test data
             for i, (user_msg, agent_resp) in enumerate(TEST_DATA[:self.num_iterations]):
@@ -26,6 +27,8 @@ class MemoryBenchmark:
                 add_time = time.time() - add_start
                 self.logger.log_timing(f"{backend.name} store/update timing", add_time)
                 self.logger.log_stored(f"{backend.name} memory stored", text)
+                if (i + 1) % 10 == 0 or (i + 1) == self.num_iterations:
+                    print(f"  Added {i + 1}/{self.num_iterations} items...")
             # Retrieval and accuracy check
             correct = 0
             for i, (user_msg, agent_resp) in enumerate(TEST_DATA[:self.num_iterations]):
@@ -40,9 +43,13 @@ class MemoryBenchmark:
                 found = any(expected in (m['memory'] if isinstance(m, dict) and 'memory' in m else str(m)) for m in results)
                 if found:
                     correct += 1
+                if (i + 1) % 10 == 0 or (i + 1) == self.num_iterations:
+                    print(f"  Retrieved {i + 1}/{self.num_iterations} items...")
             accuracy = correct / self.num_iterations
+            print(f"{backend.name} accuracy: {accuracy:.2%}")
             self.logger.log(f"{backend.name} accuracy: {accuracy:.2%}")
             self.logger.log(f"--- End of {backend.name} benchmark ---\n")
+            print(f"--- End of {backend.name} benchmark ---\n")
 
 def main():
     logger = TimingLogger('timing_benchmark.log')
