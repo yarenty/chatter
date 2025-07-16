@@ -5,3 +5,8 @@ langchain-community
 langchain-ollama
 langchain-chroma
 chromadb
+#similarity
+typing
+difflib
+Levenshtein
+jellyfish
