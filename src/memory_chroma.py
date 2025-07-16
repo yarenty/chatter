@@ -33,8 +33,10 @@ class ChromaMem0Backend(BaseMemoryBackend):
 
     def add(self, text: str, agent_id: Optional[str] = None) -> None:
         if ENFORCE_UNIQUE:
-            unique_id = str(uuid.uuid4())
-            self._memory.add(text, agent_id=agent_id, memory_id=unique_id)
+            # TODO: investigate as this doesn't work!
+            # unique_id = str(uuid.uuid4())
+            # self._memory.add(text, agent_id=agent_id, memory_id=unique_id)
+            self._memory.add(text, agent_id=agent_id)
         else:
             self._memory.add(text, agent_id=agent_id)
 
