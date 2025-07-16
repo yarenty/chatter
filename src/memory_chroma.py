@@ -6,10 +6,15 @@ from mem0.vector_stores.configs import VectorStoreConfig
 from mem0.llms.configs import LlmConfig
 from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL, VECTOR_STORE_PROVIDER, LLM_PROVIDER, LLM_MODEL, CHROMA_DB_PATH
 from typing import Any, List, Optional
+import uuid
+
+# Set this to True to enforce append-only (unique ID for every add)
+ENFORCE_UNIQUE = True
 
 class ChromaMem0Backend(BaseMemoryBackend):
     """
     Chroma/mem0-based memory backend implementation.
+    If ENFORCE_UNIQUE is True, every add() call generates a new unique ID (append-only).
     """
     def __init__(self):
         memory_config = MemoryConfig(
@@ -27,4 +32,15 @@ class ChromaMem0Backend(BaseMemoryBackend):
         return self._memory.search(query, agent_id=agent_id)
 
     def add(self, text: str, agent_id: Optional[str] = None) -> None:
-        self._memory.add(text, agent_id=agent_id) 
+        if ENFORCE_UNIQUE:
+            unique_id = str(uuid.uuid4())
+            self._memory.add(text, agent_id=agent_id, memory_id=unique_id)
+        else:
+            self._memory.add(text, agent_id=agent_id)
+
+    # Optionally, disable update/delete if present in the backend
+    def update(self, *args, **kwargs):
+        raise NotImplementedError("Update is disabled for append-only backend.")
+
+    def delete(self, *args, **kwargs):
+        raise NotImplementedError("Delete is disabled for append-only backend.") 
