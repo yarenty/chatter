@@ -2,6 +2,7 @@ import time
 from typing import List, Tuple
 from timing_utils import TimingLogger
 from memory_chroma import ChromaMem0Backend
+from memory_zerog import ZeroGMem0Backend
 import os
 import json
 from similarity_utils import get_similarity_func, AVAILABLE_ALGORITHMS
@@ -139,7 +140,7 @@ def main():
         print(f"Error: Similarity algorithm '{similarity}' is not available. Available: {AVAILABLE_ALGORITHMS}")
         return
     logger = TimingLogger('timing_benchmark.log')
-    backends = [ChromaMem0Backend()]  # Add more as you implement them
+    backends = [ChromaMem0Backend(), ZeroGMem0Backend()]  # Add more as you implement them
     benchmark = MemoryBenchmark(backends, logger, add_sample_size=ADD_SAMPLE_SIZE, retrieval_sample_size=RETRIEVAL_SAMPLE_SIZE, similarity=similarity)
     benchmark.run()
 
