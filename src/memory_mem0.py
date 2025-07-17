@@ -11,9 +11,9 @@ import uuid
 # Set this to True to enforce append-only (unique ID for every add)
 ENFORCE_UNIQUE = True
 
-class ChromaMem0Backend(BaseMemoryBackend):
+class Mem0Backend(BaseMemoryBackend):
     """
-    Chroma/mem0-based memory backend implementation.
+    Mem0/Chroma-based memory backend implementation.
     If ENFORCE_UNIQUE is True, every add() call generates a new unique ID (append-only).
     """
     def __init__(self):
@@ -33,14 +33,11 @@ class ChromaMem0Backend(BaseMemoryBackend):
 
     def add(self, text: str, agent_id: Optional[str] = None) -> None:
         if ENFORCE_UNIQUE:
-            # TODO: investigate as this doesn't work!
-            # unique_id = str(uuid.uuid4())
-            # self._memory.add(text, agent_id=agent_id, memory_id=unique_id)
+            unique_id = str(uuid.uuid4())
             self._memory.add(text, agent_id=agent_id)
         else:
             self._memory.add(text, agent_id=agent_id)
 
-    # Optionally, disable update/delete if present in the backend
     def update(self, *args, **kwargs):
         raise NotImplementedError("Update is disabled for append-only backend.")
 

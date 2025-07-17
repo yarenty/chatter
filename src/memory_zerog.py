@@ -7,7 +7,7 @@ from mem0.llms.configs import LlmConfig
 from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL, LLM_PROVIDER, LLM_MODEL
 from typing import Any, List, Optional
 
-class ZeroGMem0Backend(BaseMemoryBackend):
+class ZeroGBackend(BaseMemoryBackend):
     """
     Mem0ᵍ/Neo4j-based memory backend using mem0's graph storage.
     Requires Neo4j running and accessible at the configured URI.
