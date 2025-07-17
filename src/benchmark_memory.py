@@ -8,6 +8,8 @@ import json
 from similarity_utils import get_similarity_func, AVAILABLE_ALGORITHMS
 import argparse
 # Add imports for other backends here as you implement them
+import ollama
+from config import LLM_MODEL
 
 QA_DATA_ROOT = os.path.join(os.path.dirname(__file__), '../qa_data')
 ADD_SAMPLE_SIZE = 100  # Number of questions to add to memory
@@ -84,20 +86,29 @@ class MemoryBenchmark:
                 retrieve_times.append(retrieve_time)
                 logger.log_timing(f"{backend.name} retrieve time", retrieve_time)
                 logger.log_memories(f"{backend.name} memory retrieved", results)
-                # Accuracy: check if expected answer is similar to any retrieved memory's answer
-                best_sim = 0.0
+                # Build context for LLM
+                context = ""
                 for m in results:
                     mem_text = m['memory'] if isinstance(m, dict) and 'memory' in m else str(m)
-                    # Try to extract the answer part
-                    if 'Agent:' in mem_text:
-                        mem_answer = mem_text.split('Agent:', 1)[-1].strip()
-                    else:
-                        mem_answer = mem_text
-                    sim = self.similarity_func(expected_answer, mem_answer)
-                    if sim > best_sim:
-                        best_sim = sim
-                total_similarity += best_sim
-                if best_sim > 0.8:  # Consider correct if similarity > 0.8
+                    context += f"- {mem_text}\n"
+                prompt = f"User: {query}\n"
+                if context:
+                    prompt += f"Context from memory:\n{context}"
+                prompt += "Agent:"
+                # Generate answer with Ollama (not timed)
+                response = ollama.chat(
+                    model=LLM_MODEL,
+                    messages=[{"role": "user", "content": prompt}],
+                    stream=False
+                )
+                generated_answer = response['message']['content'].strip()
+                # Use similarity function (pass question if using llm_judge)
+                if self.similarity_name == 'llm_judge':
+                    sim = self.similarity_func(expected_answer, generated_answer, question=query)
+                else:
+                    sim = self.similarity_func(expected_answer, generated_answer)
+                total_similarity += sim
+                if sim > 0.8:
                     correct += 1
                 if (i + 1) % 10 == 0 or (i + 1) == self.retrieval_sample_size:
                     print(f"  Retrieved {i + 1}/{self.retrieval_sample_size} items...")
