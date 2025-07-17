@@ -14,6 +14,10 @@ ADD_SAMPLE_SIZE = 100  # Number of questions to add to memory
 RETRIEVAL_SAMPLE_SIZE = 10  # Number of questions to use for retrieval/accuracy
 DEFAULT_SIMILARITY = 'simple'
 
+BENCHMARK_LOG_FILES = {
+    'chroma_mem0': 'chrome_bench.log',
+    'zerog_mem0': 'mem0g_bench.log',
+}
 
 def load_qa_pairs(root_dir: str) -> List[Tuple[str, str]]:
     qa_pairs = []
@@ -34,9 +38,9 @@ def load_qa_pairs(root_dir: str) -> List[Tuple[str, str]]:
     return qa_pairs
 
 class MemoryBenchmark:
-    def __init__(self, backends: List, logger: TimingLogger, add_sample_size: int = 1000, retrieval_sample_size: int = 100, agent_id: str = "benchmark-agent", similarity: str = DEFAULT_SIMILARITY):
+    def __init__(self, backends: List, loggers: dict, add_sample_size: int = 1000, retrieval_sample_size: int = 100, agent_id: str = "benchmark-agent", similarity: str = DEFAULT_SIMILARITY):
         self.backends = backends
-        self.logger = logger
+        self.loggers = loggers  # Dict: backend.name -> TimingLogger
         self.agent_id = agent_id
         self.qa_pairs = load_qa_pairs(QA_DATA_ROOT)
         self.add_sample_size = min(add_sample_size, len(self.qa_pairs))
@@ -50,11 +54,12 @@ class MemoryBenchmark:
     def run(self):
         print(f"Loaded {len(self.qa_pairs)} QA pairs from {QA_DATA_ROOT}")
         print(f"Using similarity algorithm: {self.similarity_name}")
-        self.logger.log(f"Loaded {len(self.qa_pairs)} QA pairs from {QA_DATA_ROOT}")
-        self.logger.log(f"Using similarity algorithm: {self.similarity_name}")
         for backend in self.backends:
+            logger = self.loggers[backend.name]
+            logger.log(f"Loaded {len(self.qa_pairs)} QA pairs from {QA_DATA_ROOT}")
+            logger.log(f"Using similarity algorithm: {self.similarity_name}")
             print(f"\n--- Benchmarking {backend.name} ---")
-            self.logger.log(f"\n--- Benchmarking {backend.name} ---")
+            logger.log(f"\n--- Benchmarking {backend.name} ---")
             add_times = []
             retrieve_times = []
             # Add a limited number of QA pairs
@@ -64,8 +69,8 @@ class MemoryBenchmark:
                 backend.add(text, agent_id=self.agent_id)
                 add_time = time.time() - add_start
                 add_times.append(add_time)
-                self.logger.log_timing(f"{backend.name} store/update timing", add_time)
-                self.logger.log_stored(f"{backend.name} memory stored", text)
+                logger.log_timing(f"{backend.name} store/update timing", add_time)
+                logger.log_stored(f"{backend.name} memory stored", text)
                 if (i + 1) % 10 == 0 or (i + 1) == self.add_sample_size:
                     print(f"  Added {i + 1}/{self.add_sample_size} items...")
             # Retrieval and accuracy check
@@ -77,8 +82,8 @@ class MemoryBenchmark:
                 results = backend.search(query, agent_id=self.agent_id)
                 retrieve_time = time.time() - retrieve_start
                 retrieve_times.append(retrieve_time)
-                self.logger.log_timing(f"{backend.name} retrieve time", retrieve_time)
-                self.logger.log_memories(f"{backend.name} memory retrieved", results)
+                logger.log_timing(f"{backend.name} retrieve time", retrieve_time)
+                logger.log_memories(f"{backend.name} memory retrieved", results)
                 # Accuracy: check if expected answer is similar to any retrieved memory's answer
                 best_sim = 0.0
                 for m in results:
@@ -99,8 +104,8 @@ class MemoryBenchmark:
             accuracy = correct / self.retrieval_sample_size
             avg_similarity = total_similarity / self.retrieval_sample_size
             print(f"{backend.name} accuracy: {accuracy:.2%}, avg similarity: {avg_similarity:.2%}")
-            self.logger.log(f"{backend.name} accuracy: {accuracy:.2%}, avg similarity: {avg_similarity:.2%}")
-            self.logger.log(f"--- End of {backend.name} benchmark ---\n")
+            logger.log(f"{backend.name} accuracy: {accuracy:.2%}, avg similarity: {avg_similarity:.2%}")
+            logger.log(f"--- End of {backend.name} benchmark ---\n")
             print(f"--- End of {backend.name} benchmark ---\n")
             # Store summary
             self.results.append({
@@ -127,9 +132,11 @@ class MemoryBenchmark:
         # Print to screen
         for line in summary_lines:
             print(line)
-        # Log to file
-        for line in summary_lines:
-            self.logger.log(line)
+        # Log to each backend's file
+        for backend in self.backends:
+            logger = self.loggers[backend.name]
+            for line in summary_lines:
+                logger.log(line)
 
 def main():
     parser = argparse.ArgumentParser(description="Memory Benchmark Script")
@@ -139,9 +146,10 @@ def main():
     if similarity not in AVAILABLE_ALGORITHMS:
         print(f"Error: Similarity algorithm '{similarity}' is not available. Available: {AVAILABLE_ALGORITHMS}")
         return
-    logger = TimingLogger('timing_benchmark.log')
-    backends = [ChromaMem0Backend(), ZeroGMem0Backend()]  # Add more as you implement them
-    benchmark = MemoryBenchmark(backends, logger, add_sample_size=ADD_SAMPLE_SIZE, retrieval_sample_size=RETRIEVAL_SAMPLE_SIZE, similarity=similarity)
+    # Create a logger for each backend
+    backends = [ChromaMem0Backend(), ZeroGMem0Backend()]
+    loggers = {b.name: TimingLogger(BENCHMARK_LOG_FILES.get(b.name, f"{b.name}_bench.log")) for b in backends}
+    benchmark = MemoryBenchmark(backends, loggers, add_sample_size=ADD_SAMPLE_SIZE, retrieval_sample_size=RETRIEVAL_SAMPLE_SIZE, similarity=similarity)
     benchmark.run()
 
 if __name__ == '__main__':
