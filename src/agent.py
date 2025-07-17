@@ -15,6 +15,9 @@ from mem0.vector_stores.configs import VectorStoreConfig
 from mem0.llms.configs import LlmConfig
 import ollama
 from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL, VECTOR_STORE_PROVIDER, LLM_PROVIDER, LLM_MODEL, CHROMA_DB_PATH
+import time
+import os
+from timing_utils import TimingLogger
 
 # Remove logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -42,6 +45,8 @@ class MemOChatterAgent:
         )
         self.memory = Memory(config=memory_config)
         self.agent_id = agent_id
+        self.chat_count = 1
+        self.timing_logger = TimingLogger()
 
     def chat(self, user_message: str):
         """
@@ -53,15 +58,23 @@ class MemOChatterAgent:
             str: The agent's response.
         """
         logger.info(f"user_message = {user_message}")
+        chat_label = f"chat{self.chat_count}"
+        self.timing_logger.log(f"{chat_label}: {user_message}")
         # Retrieve relevant memories before adding the current message
         relevant_memories = None
+        retrieve_start = time.time()
         try:
             relevant_memories = self.memory.search(user_message, agent_id=self.agent_id)
+            retrieve_time = time.time() - retrieve_start
+            self.timing_logger.log_timing("memory retrieve time", retrieve_time)
             logger.debug(f"relevant_memories = {relevant_memories}")
             logger.info(f"Retrieved {len(relevant_memories) if relevant_memories else 0} relevant memories.")
         except Exception as e:
+            retrieve_time = time.time() - retrieve_start
+            self.timing_logger.log_timing("memory retrieve time", retrieve_time, exception=True)
             logger.exception("Exception during memory.search:")
             relevant_memories = []
+        self.timing_logger.log_memories("memory retrieved", relevant_memories)
         # Construct the prompt for Ollama, including relevant memories
         prompt = f"User: {user_message}\n"
         if relevant_memories:
@@ -90,10 +103,18 @@ class MemOChatterAgent:
 
         # Store the user/agent exchange as a single memory
         exchange = f"User: {user_message}\nAgent: {agent_response}"
+        store_start = time.time()
         try:
             self.memory.add(exchange, agent_id=self.agent_id)
+            store_time = time.time() - store_start
+            self.timing_logger.log_timing("memory store/update timing", store_time)
+            self.timing_logger.log_stored("memory stored", exchange)
         except Exception as e:
+            store_time = time.time() - store_start
+            self.timing_logger.log_timing("memory store/update timing", store_time, exception=True)
+            self.timing_logger.log_stored("memory stored", exchange, exception=e)
             logger.exception("Exception during memory.add (agent response):")
+        self.chat_count += 1
         return agent_response
 
 if __name__ == "__main__":

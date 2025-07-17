@@ -45,12 +45,22 @@ def hamming_ratio(a: str, b: str) -> float:
         return 0.0
     return sum(x == y for x, y in zip(a, b)) / len(a) if a else 1.0
 
+# LLM Judge similarity (Ollama/llama3.2)
+try:
+    from similarity.llm_judge import llm_judge_similarity
+    _has_llm_judge = True
+except ImportError:
+    def llm_judge_similarity(a: str, b: str) -> float:
+        raise ImportError("llm_judge_similarity not available")
+    _has_llm_judge = False
+
 SIMILARITY_ALGORITHMS = {
     'simple': simple_ratio,
     'difflib': difflib_similarity if _has_difflib else None,
     'levenshtein': levenshtein_ratio if _has_lev else None,
     'jaro': jaro_winkler if _has_jaro else None,
     'hamming': hamming_ratio,
+    'llm_judge': llm_judge_similarity if _has_llm_judge else None,
 }
 
 AVAILABLE_ALGORITHMS = [k for k, v in SIMILARITY_ALGORITHMS.items() if v is not None]
