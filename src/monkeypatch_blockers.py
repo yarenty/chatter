@@ -52,6 +52,7 @@ try:
     import json
     import logging
     import inspect
+    import re
     logger = logging.getLogger(__name__)
 
     logger.info("Attempting to apply mem0 monkeypatches...")
@@ -89,7 +90,13 @@ try:
             if isinstance(entities, list):
                 for entity in entities:
                     if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
-                        entity["relationship"] = entity["relationship"].replace(" ", "_")
+                        rel = entity["relationship"]
+                        # Sanitize relationship label for Cypher:
+                        # 1. Replace spaces and hyphens with underscores.
+                        rel = rel.replace(" ", "_").replace("-", "_")
+                        # 2. Remove all other non-alphanumeric characters (keeps letters, numbers, underscore).
+                        rel = re.sub(r'[^\w]', '', rel)
+                        entity["relationship"] = rel
             return original_add_entities(self, entities, *args, **kwargs)
 
         setattr(GraphMemoryClass, '_add_entities', patched_add_entities)
