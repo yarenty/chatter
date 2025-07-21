@@ -422,3 +422,28 @@ try:
             logger.info(f"[extra patch] Patched extract_entities in {name}")
 except Exception as e:
     logger.warning(f"[extra patch] Failed to apply extract_entities patch: {e}") 
+
+# === Patch: Ensure entities is always a list, not a string, in _retrieve_nodes_from_data ===
+try:
+    import mem0.memory.graph_memory
+    import inspect
+    import logging
+    import json
+    logger = logging.getLogger(__name__)
+
+    for name, obj in inspect.getmembers(mem0.memory.graph_memory):
+        if inspect.isclass(obj) and hasattr(obj, '_retrieve_nodes_from_data'):
+            orig_method = getattr(obj, '_retrieve_nodes_from_data')
+            def patched_method(self, entities, *args, **kwargs):
+                if isinstance(entities, str):
+                    try:
+                        entities = json.loads(entities)
+                        logger.info("[extra patch] Parsed stringified entities JSON in _retrieve_nodes_from_data")
+                    except Exception as e:
+                        logger.warning(f"[extra patch] Failed to parse entities JSON: {e}")
+                        entities = []
+                return orig_method(self, entities, *args, **kwargs)
+            setattr(obj, '_retrieve_nodes_from_data', patched_method)
+            logger.info(f"[extra patch] Patched _retrieve_nodes_from_data in {name}")
+except Exception as e:
+    logger.warning(f"[extra patch] Failed to apply _retrieve_nodes_from_data (entities) patch: {e}") 
