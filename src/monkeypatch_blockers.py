@@ -396,3 +396,29 @@ try:
         logger.warning("[extra patch] Could not find a class with '_retrieve_nodes_from_data' to patch in mem0.memory.graph_memory.")
 except Exception as e:
     logger.warning(f"[extra patch] Failed to apply _retrieve_nodes_from_data patch: {e}") 
+
+# === Patch: Ensure entities is always a list, not a string, in extract_entities ===
+try:
+    import mem0.memory.graph_memory
+    import inspect
+    import logging
+    import json
+    logger = logging.getLogger(__name__)
+
+    # Find the class and method
+    for name, obj in inspect.getmembers(mem0.memory.graph_memory):
+        if inspect.isclass(obj) and hasattr(obj, 'extract_entities'):
+            orig_extract_entities = getattr(obj, 'extract_entities')
+            def patched_extract_entities(self, entities, *args, **kwargs):
+                if isinstance(entities, str):
+                    try:
+                        entities = json.loads(entities)
+                        logger.info("[extra patch] Parsed stringified entities JSON in extract_entities")
+                    except Exception as e:
+                        logger.warning(f"[extra patch] Failed to parse entities JSON: {e}")
+                        entities = []
+                return orig_extract_entities(self, entities, *args, **kwargs)
+            setattr(obj, 'extract_entities', patched_extract_entities)
+            logger.info(f"[extra patch] Patched extract_entities in {name}")
+except Exception as e:
+    logger.warning(f"[extra patch] Failed to apply extract_entities patch: {e}") 
