@@ -11,6 +11,7 @@ from monkeypatch_blockers import *
 # Add imports for other backends here as you implement them
 import ollama
 from config import LLM_MODEL
+import logging
 
 QA_DATA_ROOT = os.path.join(os.path.dirname(__file__), '../qa_data')
 ADD_SAMPLE_SIZE = 2  # Number of questions to add to memory
@@ -151,6 +152,9 @@ class MemoryBenchmark:
                 logger.log(line)
 
 def main():
+    # Configure logging to see INFO messages from the monkeypatch and other components.
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s:%(name)s:%(message)s')
+
     parser = argparse.ArgumentParser(description="Memory Benchmark Script")
     parser.add_argument('--similarity', type=str, default=DEFAULT_SIMILARITY, help=f"Similarity algorithm to use. Available: {AVAILABLE_ALGORITHMS}")
     args = parser.parse_args()
