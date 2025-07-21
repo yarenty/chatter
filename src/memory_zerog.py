@@ -3,8 +3,9 @@ from mem0 import Memory
 from mem0.configs.base import MemoryConfig
 from mem0.embeddings.configs import EmbedderConfig
 from mem0.graphs.configs import GraphStoreConfig
+from mem0.vector_stores.configs import VectorStoreConfig
 from mem0.llms.configs import LlmConfig
-from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL, LLM_PROVIDER, LLM_MODEL
+from config import EMBEDDING_PROVIDER, EMBEDDING_MODEL, VECTOR_STORE_PROVIDER, LLM_PROVIDER, LLM_MODEL, CHROMA_DB_PATH
 from typing import Any, List, Optional
 
 class ZeroGBackend(BaseMemoryBackend):
@@ -15,14 +16,15 @@ class ZeroGBackend(BaseMemoryBackend):
     def __init__(self):
         memory_config = MemoryConfig(
             embedder=EmbedderConfig(provider=EMBEDDING_PROVIDER, config={"model": EMBEDDING_MODEL}),
-            vector_store=GraphStoreConfig(
+            graph_store=GraphStoreConfig(
                 provider="neo4j",
                 config={
-                    "uri": "bolt://localhost:7687",
-                    "user": "neo4j",
-                    "password": "your_password",  # <-- Set your Neo4j password here
+                    "url": "bolt://localhost:7687",
+                    "username": "neo4j",
+                    "password": "q1w2e3r4t5",  # <-- Set your Neo4j password here
                 }
             ),
+            vector_store=VectorStoreConfig(provider=VECTOR_STORE_PROVIDER, config={"path": CHROMA_DB_PATH}),
             llm=LlmConfig(provider=LLM_PROVIDER, config={"model": LLM_MODEL})
         )
         self._memory = Memory(config=memory_config)
