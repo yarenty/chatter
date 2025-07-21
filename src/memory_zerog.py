@@ -24,7 +24,16 @@ class ZeroGBackend(BaseMemoryBackend):
                     "password": "q1w2e3r4t5",  # <-- Set your Neo4j password here
                 }
             ),
-            vector_store=VectorStoreConfig(provider=VECTOR_STORE_PROVIDER, config={"path": CHROMA_DB_PATH}),
+            # vector_store=VectorStoreConfig(provider=VECTOR_STORE_PROVIDER, config={"path": CHROMA_DB_PATH}),
+            # Explicitly configure a vector store to avoid the default ChromaDB with the filtering bug.
+            # Using in-memory Qdrant as a replacement.
+            vector_store=VectorStoreConfig(
+                provider="qdrant",
+                config={
+                    "on_disk": False,
+                    "embedding_model_dims": 3072
+                }
+            ),
             llm=LlmConfig(provider=LLM_PROVIDER, config={"model": LLM_MODEL})
         )
         self._memory = Memory(config=memory_config)
@@ -37,8 +46,9 @@ class ZeroGBackend(BaseMemoryBackend):
         return self._memory.search(query, agent_id=agent_id)
 
     def add(self, text: str, agent_id: Optional[str] = None) -> None:
-        # Pass user_id=None to avoid multi-key filter error in chroma, which mem0 uses by default
-        self._memory.add(text, agent_id=agent_id, user_id=None)
+        # Pass user_id="" to avoid multi-key filter error.
+        # This may or may not be needed with Qdrant but is kept for safety.
+        self._memory.add(text, agent_id=agent_id, user_id="")
 
     def update(self, *args, **kwargs):
         raise NotImplementedError("Update is disabled for append-only backend.")

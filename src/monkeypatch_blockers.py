@@ -43,3 +43,21 @@ try:
     urllib3.PoolManager.urlopen = block_urllib3
 except ImportError:
     pass 
+
+# Monkeypatch mem0.graph_memory.extract_entities to ensure entities is always a list, not a string
+try:
+    import mem0.memory.graph_memory as graph_memory
+    import json
+    orig_extract_entities = getattr(graph_memory, 'extract_entities', None)
+    if orig_extract_entities:
+        def safe_extract_entities(*args, **kwargs):
+            result = orig_extract_entities(*args, **kwargs)
+            if isinstance(result, str):
+                try:
+                    result = json.loads(result)
+                except Exception:
+                    pass
+            return result
+        graph_memory.extract_entities = safe_extract_entities
+except ImportError:
+    pass 
