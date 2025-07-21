@@ -44,43 +44,59 @@ try:
 except ImportError:
     pass 
 
-# Monkeypatch mem0.memory.graph_memory to sanitize relationship labels before creating Cypher queries.
-# This fixes CypherSyntaxError for relationship types with spaces.
+# Monkeypatch mem0.memory.graph_memory to fix multiple bugs
+# 1. TypeError: handle stringified JSON in _remove_spaces_from_entities
+# 2. CypherSyntaxError: sanitize relationship labels in _add_entities
 try:
     import mem0.memory.graph_memory
+    import json
     import logging
     import inspect
     logger = logging.getLogger(__name__)
 
-    logger.info("Attempting to monkeypatch mem0 to fix Cypher syntax errors")
+    logger.info("Attempting to apply mem0 monkeypatches...")
     
-    # Dynamically find the class that has the method we need to patch.
+    # Dynamically find the class to patch
     GraphMemoryClass = None
     for name, obj in inspect.getmembers(mem0.memory.graph_memory):
-        if inspect.isclass(obj) and hasattr(obj, '_add_entities'):
+        if inspect.isclass(obj) and hasattr(obj, '_add_entities') and hasattr(obj, '_remove_spaces_from_entities'):
             GraphMemoryClass = obj
-            logger.info(f"Found class '{name}' to patch for Cypher syntax fix.")
+            logger.info(f"Found class '{name}' to patch.")
             break
 
     if GraphMemoryClass:
+        # ===== PATCH 1: Fix TypeError in _remove_spaces_from_entities =====
+        original_remove_spaces = getattr(GraphMemoryClass, '_remove_spaces_from_entities')
+
+        def patched_remove_spaces(self, entities):
+            processed_entities = []
+            if isinstance(entities, str):
+                try:
+                    processed_entities = json.loads(entities)
+                except json.JSONDecodeError:
+                    return []
+            else:
+                processed_entities = entities
+            return original_remove_spaces(self, processed_entities)
+
+        setattr(GraphMemoryClass, '_remove_spaces_from_entities', patched_remove_spaces)
+        logger.info(f"Successfully patched {GraphMemoryClass.__name__}._remove_spaces_from_entities")
+
+        # ===== PATCH 2: Fix CypherSyntaxError in _add_entities =====
         original_add_entities = getattr(GraphMemoryClass, '_add_entities')
 
         def patched_add_entities(self, entities, *args, **kwargs):
-            # Sanitize relationship labels in entities before calling the original function
             if isinstance(entities, list):
                 for entity in entities:
                     if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
-                        # Replace spaces with underscores, as Neo4j doesn't like spaces in rel types without backticks
                         entity["relationship"] = entity["relationship"].replace(" ", "_")
-            
-            # Call the original method with the sanitized entities
             return original_add_entities(self, entities, *args, **kwargs)
 
         setattr(GraphMemoryClass, '_add_entities', patched_add_entities)
-        logger.info(f"Successfully monkeypatched {GraphMemoryClass.__name__}._add_entities")
+        logger.info(f"Successfully patched {GraphMemoryClass.__name__}._add_entities")
     else:
-        logger.warning("Could not find a class with method '_add_entities' to patch for Cypher syntax.")
+        logger.warning("Could not find a class with all required methods to patch in mem0.")
 
 except Exception as e:
-    logging.getLogger(__name__).warning(f"Failed to apply mem0 monkeypatch for Cypher syntax: {e}")
+    logging.getLogger(__name__).warning(f"Failed to apply mem0 monkeypatches: {e}")
     pass 
