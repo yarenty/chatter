@@ -90,13 +90,25 @@ try:
             if isinstance(entities, list):
                 for entity in entities:
                     if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
-                        rel = entity["relationship"]
-                        # Sanitize relationship label for Cypher:
-                        # 1. Replace spaces and hyphens with underscores.
-                        rel = rel.replace(" ", "_").replace("-", "_")
-                        # 2. Remove all other non-alphanumeric characters (keeps letters, numbers, underscore).
-                        rel = re.sub(r'[^\w]', '', rel)
-                        entity["relationship"] = rel
+                        original_rel = entity["relationship"]
+                        
+                        # Build a sanitized relationship string character by character
+                        sanitized_chars = []
+                        for char in original_rel:
+                            if char.isalnum():
+                                sanitized_chars.append(char)
+                            elif char.isspace() or char == '-':
+                                sanitized_chars.append('_')
+                        
+                        final_rel = "".join(sanitized_chars)
+
+                        # If sanitization results in an empty string, use a default
+                        if not final_rel:
+                            final_rel = "RELATED_TO"
+                        
+                        logger.info(f"Sanitizing relationship: '{original_rel}' -> '{final_rel}'")
+                        entity["relationship"] = final_rel
+                        
             return original_add_entities(self, entities, *args, **kwargs)
 
         setattr(GraphMemoryClass, '_add_entities', patched_add_entities)
