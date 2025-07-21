@@ -311,3 +311,88 @@ try:
         logger.warning("[extra patch] Could not find a class with '_delete_entities' or 'query' to patch in mem0.memory.graph_memory.")
 except Exception as e:
     logger.warning(f"[extra patch] Failed to apply _delete_entities/query patch: {e}") 
+
+# === Patch: Sanitize relationships in all graph.query methods used in mem0.memory.graph_memory ===
+try:
+    import mem0.memory.graph_memory
+    import inspect
+    import logging
+    logger = logging.getLogger(__name__)
+
+    def sanitize_relationships(entities):
+        if isinstance(entities, list):
+            for entity in entities:
+                if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
+                    original_rel = entity["relationship"]
+                    sanitized_chars = []
+                    for char in original_rel:
+                        if char.isalnum():
+                            sanitized_chars.append(char)
+                        elif char.isspace() or char == '-':
+                            sanitized_chars.append('_')
+                    final_rel = "".join(sanitized_chars)
+                    if not final_rel:
+                        final_rel = "RELATED_TO"
+                    if final_rel != original_rel:
+                        logger.info(f"Sanitizing relationship: '{original_rel}' -> '{final_rel}' (graph.query)")
+                    entity["relationship"] = final_rel
+        return entities
+
+    # Patch all classes in mem0.memory.graph_memory that have a 'query' method
+    for name, obj in inspect.getmembers(mem0.memory.graph_memory):
+        if inspect.isclass(obj) and hasattr(obj, 'query'):
+            orig_query = getattr(obj, 'query')
+            def make_patched_query(orig_func, class_name):
+                def patched_query(self, *args, **kwargs):
+                    # Try to sanitize relationships in all list/dict args
+                    for arg in args:
+                        if isinstance(arg, list):
+                            sanitize_relationships(arg)
+                        elif isinstance(arg, dict) and "entities" in arg:
+                            sanitize_relationships(arg["entities"])
+                    for k, v in kwargs.items():
+                        if isinstance(v, list):
+                            sanitize_relationships(v)
+                        elif isinstance(v, dict) and "entities" in v:
+                            sanitize_relationships(v["entities"])
+                    print(f"CALLED: {class_name}.query (patched)")
+                    return orig_func(self, *args, **kwargs)
+                return patched_query
+            setattr(obj, 'query', make_patched_query(orig_query, name))
+            logger.info(f"[extra patch] Patched query in {name}")
+except Exception as e:
+    logger.warning(f"[extra patch] Failed to apply graph.query patch: {e}") 
+
+# === Patch: Ensure filters['user_id'] always exists in _retrieve_nodes_from_data ===
+try:
+    import mem0.memory.graph_memory
+    import inspect
+    import logging
+    logger = logging.getLogger(__name__)
+
+    GraphMemoryClass = None
+    for name, obj in inspect.getmembers(mem0.memory.graph_memory):
+        if inspect.isclass(obj) and hasattr(obj, '_retrieve_nodes_from_data'):
+            GraphMemoryClass = obj
+            logger.info(f"[extra patch] Found class '{name}' to patch for _retrieve_nodes_from_data.")
+            break
+
+    if GraphMemoryClass:
+        orig_method = getattr(GraphMemoryClass, '_retrieve_nodes_from_data')
+        def patched_method(self, *args, **kwargs):
+            # Find filters argument (usually second positional or in kwargs)
+            filters = None
+            if len(args) > 1 and isinstance(args[1], dict):
+                filters = args[1]
+            elif 'filters' in kwargs and isinstance(kwargs['filters'], dict):
+                filters = kwargs['filters']
+            if filters is not None and 'user_id' not in filters:
+                filters['user_id'] = 'user'
+                logger.info("[extra patch] Added missing 'user_id' to filters in _retrieve_nodes_from_data")
+            return orig_method(self, *args, **kwargs)
+        setattr(GraphMemoryClass, '_retrieve_nodes_from_data', patched_method)
+        logger.info(f"[extra patch] Patched _retrieve_nodes_from_data in {GraphMemoryClass.__name__}")
+    else:
+        logger.warning("[extra patch] Could not find a class with '_retrieve_nodes_from_data' to patch in mem0.memory.graph_memory.")
+except Exception as e:
+    logger.warning(f"[extra patch] Failed to apply _retrieve_nodes_from_data patch: {e}") 
