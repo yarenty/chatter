@@ -87,6 +87,7 @@ try:
         original_add_entities = getattr(GraphMemoryClass, '_add_entities')
 
         def patched_add_entities(self, entities, *args, **kwargs):
+            logger.info("Executing patched _add_entities...")
             if isinstance(entities, list):
                 for entity in entities:
                     if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
@@ -119,3 +120,65 @@ try:
 except Exception as e:
     logging.getLogger(__name__).warning(f"Failed to apply mem0 monkeypatches: {e}")
     pass 
+
+# === Additional patch: Sanitize relationships in both add and _add_entities ===
+try:
+    import mem0.memory.graph_memory
+    import inspect
+    import logging
+    logger = logging.getLogger(__name__)
+
+    def sanitize_relationships(entities):
+        changed = False
+        if isinstance(entities, list):
+            for entity in entities:
+                if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
+                    original_rel = entity["relationship"]
+                    sanitized_chars = []
+                    for char in original_rel:
+                        if char.isalnum():
+                            sanitized_chars.append(char)
+                        elif char.isspace() or char == '-':
+                            sanitized_chars.append('_')
+                    final_rel = "".join(sanitized_chars)
+                    if not final_rel:
+                        final_rel = "RELATED_TO"
+                    if final_rel != original_rel:
+                        logger.info(f"Sanitizing relationship: '{original_rel}' -> '{final_rel}'")
+                    entity["relationship"] = final_rel
+                    changed = True
+        return entities
+
+    GraphMemoryClass = None
+    for name, obj in inspect.getmembers(mem0.memory.graph_memory):
+        if inspect.isclass(obj) and hasattr(obj, 'add'):
+            GraphMemoryClass = obj
+            logger.info(f"[extra patch] Found class '{name}' to patch for add/_add_entities.")
+            break
+
+    if GraphMemoryClass:
+        # Patch add
+        orig_add = getattr(GraphMemoryClass, 'add')
+        def patched_add(self, data, *args, **kwargs):
+            if isinstance(data, list):
+                sanitize_relationships(data)
+            elif isinstance(data, dict) and "entities" in data:
+                sanitize_relationships(data["entities"])
+            print("CALLED: add (patched)")
+            return orig_add(self, data, *args, **kwargs)
+        setattr(GraphMemoryClass, 'add', patched_add)
+
+        # Patch _add_entities if it exists
+        if hasattr(GraphMemoryClass, '_add_entities'):
+            orig_add_entities = getattr(GraphMemoryClass, '_add_entities')
+            def patched_add_entities(self, entities, *args, **kwargs):
+                sanitize_relationships(entities)
+                print("CALLED: _add_entities (patched)")
+                return orig_add_entities(self, entities, *args, **kwargs)
+            setattr(GraphMemoryClass, '_add_entities', patched_add_entities)
+
+        logger.info(f"[extra patch] Patched add and _add_entities in {GraphMemoryClass.__name__}")
+    else:
+        logger.warning("[extra patch] Could not find a class with 'add' to patch in mem0.memory.graph_memory.")
+except Exception as e:
+    logger.warning(f"[extra patch] Failed to apply add/_add_entities patch: {e}") 

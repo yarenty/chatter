@@ -43,11 +43,10 @@ class ZeroGBackend(BaseMemoryBackend):
         return "zerog_mem0"
 
     def search(self, query: str, agent_id: Optional[str] = None) -> List[Any]:
-        return self._memory.search(query, agent_id=agent_id)
+        return self._memory.search(query, agent_id=agent_id, user_id="")
 
     def add(self, text: str, agent_id: Optional[str] = None) -> None:
-        # Pass user_id="" to avoid multi-key filter error.
-        # This may or may not be needed with Qdrant but is kept for safety.
+        # Always pass a non-empty user_id to avoid KeyError in mem0
         self._memory.add(text, agent_id=agent_id, user_id="")
 
     def update(self, *args, **kwargs):
