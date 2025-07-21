@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "An Agentic AI Chatbot with Memory"
 dependencies = [
     "mem0",
-    "ollama"
+    "ollama",
     "langchain",
     "langchain-community",
     "langchain-chroma",
