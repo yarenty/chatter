@@ -12,8 +12,8 @@ import ollama
 from config import LLM_MODEL
 
 QA_DATA_ROOT = os.path.join(os.path.dirname(__file__), '../qa_data')
-ADD_SAMPLE_SIZE = 100  # Number of questions to add to memory
-RETRIEVAL_SAMPLE_SIZE = 10  # Number of questions to use for retrieval/accuracy
+ADD_SAMPLE_SIZE = 2  # Number of questions to add to memory
+RETRIEVAL_SAMPLE_SIZE = 1  # Number of questions to use for retrieval/accuracy
 DEFAULT_SIMILARITY = 'simple'
 
 BENCHMARK_LOG_FILES = {
@@ -158,7 +158,8 @@ def main():
         print(f"Error: Similarity algorithm '{similarity}' is not available. Available: {AVAILABLE_ALGORITHMS}")
         return
     # Create a logger for each backend
-    backends = [Mem0Backend(), ZeroGBackend()]
+    # backends = [Mem0Backend(), ZeroGBackend()]
+    backends = [ZeroGBackend()]
     loggers = {b.name: TimingLogger(BENCHMARK_LOG_FILES.get(b.name, f"{b.name}_bench.log")) for b in backends}
     benchmark = MemoryBenchmark(backends, loggers, add_sample_size=ADD_SAMPLE_SIZE, retrieval_sample_size=RETRIEVAL_SAMPLE_SIZE, similarity=similarity)
     benchmark.run()

@@ -37,7 +37,8 @@ class ZeroGBackend(BaseMemoryBackend):
         return self._memory.search(query, agent_id=agent_id)
 
     def add(self, text: str, agent_id: Optional[str] = None) -> None:
-        self._memory.add(text, agent_id=agent_id)
+        # Pass user_id=None to avoid multi-key filter error in chroma, which mem0 uses by default
+        self._memory.add(text, agent_id=agent_id, user_id=None)
 
     def update(self, *args, **kwargs):
         raise NotImplementedError("Update is disabled for append-only backend.")
