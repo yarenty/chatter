@@ -182,3 +182,65 @@ try:
         logger.warning("[extra patch] Could not find a class with 'add' to patch in mem0.memory.graph_memory.")
 except Exception as e:
     logger.warning(f"[extra patch] Failed to apply add/_add_entities patch: {e}") 
+
+# === Additional patch: Sanitize relationships in all search/retrieve methods ===
+try:
+    import mem0.memory.graph_memory
+    import inspect
+    import logging
+    logger = logging.getLogger(__name__)
+
+    def sanitize_relationships(entities):
+        changed = False
+        if isinstance(entities, list):
+            for entity in entities:
+                if isinstance(entity, dict) and "relationship" in entity and isinstance(entity.get("relationship"), str):
+                    original_rel = entity["relationship"]
+                    sanitized_chars = []
+                    for char in original_rel:
+                        if char.isalnum():
+                            sanitized_chars.append(char)
+                        elif char.isspace() or char == '-':
+                            sanitized_chars.append('_')
+                    final_rel = "".join(sanitized_chars)
+                    if not final_rel:
+                        final_rel = "RELATED_TO"
+                    if final_rel != original_rel:
+                        logger.info(f"Sanitizing relationship: '{original_rel}' -> '{final_rel}' (search/retrieve)")
+                    entity["relationship"] = final_rel
+                    changed = True
+        return entities
+
+    GraphMemoryClass = None
+    for name, obj in inspect.getmembers(mem0.memory.graph_memory):
+        if inspect.isclass(obj) and hasattr(obj, 'add'):
+            GraphMemoryClass = obj
+            logger.info(f"[extra patch] Found class '{name}' to patch for search/retrieve.")
+            break
+
+    if GraphMemoryClass:
+        for method_name, method in inspect.getmembers(GraphMemoryClass, predicate=inspect.isfunction):
+            if method_name.startswith('search') or method_name.startswith('retrieve'):
+                orig_method = getattr(GraphMemoryClass, method_name)
+                def make_patched(orig_func, method_name):
+                    def wrapper(self, *args, **kwargs):
+                        # Try to sanitize relationships in all list/dict args
+                        for arg in args:
+                            if isinstance(arg, list):
+                                sanitize_relationships(arg)
+                            elif isinstance(arg, dict) and "entities" in arg:
+                                sanitize_relationships(arg["entities"])
+                        for k, v in kwargs.items():
+                            if isinstance(v, list):
+                                sanitize_relationships(v)
+                            elif isinstance(v, dict) and "entities" in v:
+                                sanitize_relationships(v["entities"])
+                        print(f"CALLED: {method_name} (patched)")
+                        return orig_func(self, *args, **kwargs)
+                    return wrapper
+                setattr(GraphMemoryClass, method_name, make_patched(orig_method, method_name))
+        logger.info(f"[extra patch] Patched all search/retrieve methods in {GraphMemoryClass.__name__}")
+    else:
+        logger.warning("[extra patch] Could not find a class with 'add' to patch for search/retrieve in mem0.memory.graph_memory.")
+except Exception as e:
+    logger.warning(f"[extra patch] Failed to apply search/retrieve patch: {e}") 
